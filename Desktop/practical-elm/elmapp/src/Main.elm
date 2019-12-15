@@ -1,8 +1,10 @@
 module Main exposing (..)
 
 import Browser
-import Html exposing (Html, div, h1, img, text)
+import Html exposing (Html, div, h1, img)
 import Html.Attributes exposing (src)
+import Element exposing (..)
+import Element.Border as Border
 
 
 
@@ -61,9 +63,29 @@ update msg model =
 view : Model -> Browser.Document Msg
 view _ =
     { title = "VisExp"
-    , body = []
+    , body = 
+        [ layout [] <|
+            column [ width fill, spacingXY 0 20 ]
+                [ navBar
+                , el [ centerX ] <| text "VisExp"
+                ]
+        ]
     }
 
+blue : Color
+blue = rgb255 52 101 164
+
+navBar : Element Msg
+navBar =
+    row
+        [ width fill
+        , paddingXY 60 10
+        , Border.widthEach { bottom = 1, top = 0, left = 0, right = 0 }
+        , Border.color blue
+        ]
+        [ el [ alignLeft ] <| text "VisExp"
+        , el [ alignRight ] <| text "Menu"
+        ]
 
 
 ---- PROGRAM ----
