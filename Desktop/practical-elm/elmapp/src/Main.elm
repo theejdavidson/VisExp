@@ -8,6 +8,8 @@ import Element.Border as Border
 import Element.Input as Input
 import Element.Background as Background
 import Element.Font as Font
+import Json.Decode
+import PlanParsers.Json exposing (..)
 
 
 ---- MODEL ----
@@ -151,7 +153,16 @@ inputPage model =
 
 displayPage : Model -> Element Msg
 displayPage model =
-    column [] [ text model.currPlanText ]
+    let
+        tree =
+            case Json.Decode.decodeString decodePlanJson model.currPlanText of
+                Ok planJson ->
+                    text "Success"
+                Err err ->
+                    text <| Json.Decode.errorToString err
+
+    in  
+    column [] [ tree ]
 
 navBar : Element Msg
 navBar =
