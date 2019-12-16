@@ -1,15 +1,17 @@
 module Main exposing (..)
 
 import Browser
-import Html exposing (Html, div, h1, img)
-import Html.Attributes exposing (src)
 import Element exposing (..)
-import Element.Border as Border
-import Element.Input as Input
 import Element.Background as Background
+import Element.Border as Border
 import Element.Font as Font
+import Element.Input as Input
+import Html exposing (Html, div, h1, img)
+import Element.Events exposing (onMouseEnter, onMouseLeave)
+import Html.Attributes exposing (src)
 import Json.Decode
 import PlanParsers.Json exposing (..)
+
 
 
 ---- MODEL ----
@@ -19,15 +21,19 @@ type Page
     = DisplayPage
     | InputPage
 
+
 type Msg
     = NoOp
     | ChangePlanText String
+    | MouseEnteredPlanNode Plan
+    | MouseLeftPlanNode Plan
     | SubmitPlan
 
 
 type alias Model =
     { currPage : Page
     , currPlanText : String
+    , selectedNode : Maybe Plan
     }
 
 
@@ -38,7 +44,8 @@ type alias Flags =
 init : Flags -> ( Model, Cmd Msg )
 init _ =
     ( { currPage = InputPage
-    , currPlanText = ""
+      , currPlanText = ""
+      , selectedNode = Nothing
       }
     , Cmd.none
     )
@@ -57,12 +64,17 @@ subscriptions model =
 ---- UPDATE ----
 
 
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         ChangePlanText s ->
             ( { model | currPlanText = s }, Cmd.none )
+
+        MouseEnteredPlanNode plan ->
+            ( { model | selectedNode = Just plan }, Cmd.none )
+
+        MouseLeftPlanNode commonFields ->
+            ( { model | selectedNode = Nothing }, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -82,13 +94,12 @@ view model =
             case model.currPage of
                 DisplayPage ->
                     displayPage model
-                
+
                 InputPage ->
                     inputPage model
-
     in
     { title = "VisExp"
-    , body = 
+    , body =
         [ layout [] <|
             column [ width fill, spacingXY 0 20 ]
                 [ navBar
@@ -97,26 +108,51 @@ view model =
         ]
     }
 
+
 blue : Color
-blue = rgb255 52 101 164
+blue =
+    rgb255 52 101 164
+
 
 lightBlue : Color
-lightBlue = rgb255 139 178 248
+lightBlue =
+    rgb255 139 178 248
+
 
 lightYellow : Color
-lightYellow = rgb255 255 255 96
+lightYellow =
+    rgb255 255 255 96
+
 
 white : Color
-white = rgb255 255 255 255
+white =
+    rgb255 255 255 255
+
 
 lightCharcoal : Color
-lightCharcoal = rgb255 136 138 133
+lightCharcoal =
+    rgb255 136 138 133
+
+
+lightGrey : Color
+lightGrey =
+    rgb255 226 226 226
+
+
+grey : Color
+grey =
+    rgb255 145 145 145
+
 
 green : Color
-green = rgb255 0 97 43
+green =
+    rgb255 0 97 43
+
 
 darkGreen : Color
-darkGreen = rgb255 0 141 0
+darkGreen =
+    rgb255 0 141 0
+
 
 inputPage : Model -> Element Msg
 inputPage model =
@@ -157,6 +193,7 @@ inputPage model =
             }
         ]
 
+
 displayPage : Model -> Element Msg
 displayPage model =
     let
@@ -167,33 +204,115 @@ displayPage model =
 
                 Err err ->
                     [ text <| Json.Decode.errorToString err ]
-    in  
-    column [] tree
+
+        details =
+            case model.selectedNode of
+                Nothing ->
+                    [ text "" ]
+
+                Just plan ->
+                    detailPanelContent plan
+    in
+    row [ width fill, paddingEach { top = 20, left = 0, right = 0, bottom = 0 } ]
+        [ column [ width (fillPortion 7), height fill, alignTop ] tree
+        , column
+            [ width (fillPortion 3 |> maximum 500)
+            , height fill
+            , alignTop
+            , padding 5
+            , Border.widthEach { left = 1, right = 0, top = 0, bottom = 0 }
+            , Border.color grey
+            ]
+          <|
+            details
+        ]
+
+
+detailPanelContent : Plan -> List (Element msg)
+detailPanelContent plan =
+    let
+        attr name value =
+            wrappedRow [ width fill ]
+                [ el
+                    [ width (px 200)
+                    , paddingEach { right = 10, left = 10, top = 3, bottom = 3 }
+                    , alignTop
+                    ]
+                  <|
+                    text name
+                , paragraph [ width fill, Font.bold, scrollbarX ] [ text value ]
+                ]
+
+        header name =
+            el [ paddingEach { top = 10, bottom = 5, left = 10, right = 0 } ] <|
+                el
+                    [ Font.bold
+                    , Border.widthEach { bottom = 1, top = 0, left = 0, right = 0 }
+                    , Border.color lightGrey
+                    ]
+                <|
+                    text name
+
+        commonAttrs common =
+            [ attr "Startup cost" <| String.fromFloat common.startupCost
+            , attr "Total cost" <| String.fromFloat common.totalCost
+            , attr "Schema" common.schema
+            ]
+    in
+    case plan of
+        PCte node ->
+            commonAttrs node.common
+
+        PGeneric node ->
+            commonAttrs node
+
+        PResult node ->
+            commonAttrs node.common
+
+        PSeqScan node ->
+            commonAttrs node.common
+                ++ [ header "Filter"
+                   , attr "Filter" node.filter
+                   , attr "Width" <| String.fromInt node.rowsRemovedByFilter
+                   ]
+
+        PSort node ->
+            commonAttrs node.common
+                ++ [ header "Sort"
+                   , attr "Sort Key" <| String.join ", " node.sortKey
+                   , attr "Sort Method" node.sortMethod
+                   , attr "Sort Space Type" node.sortSpaceType
+                   , attr "Sort Space Used" <| String.fromInt node.sortSpaceUsed
+                   ]
+
 
 planNodeTree : Plan -> List (Element Msg)
 planNodeTree plan =
     let
         nodeTypeEl nodeType =
             el [ Font.bold ] <| text nodeType
-        
+
         treeNode node nodeDetails =
             [ el
                 [ Border.widthEach { bottom = 1, top = 0, left = 0, right = 0 }
                 , Border.color lightBlue
                 , mouseOver [ Background.color lightYellow ]
                 , padding 4
+                , onMouseEnter <| MouseEnteredPlanNode plan
+                , onMouseLeave <| MouseLeftPlanNode plan
                 ] <|
-                paragraph [] ((nodeTypeEl node.common.nodeType) :: nodeDetails)
-                , childNodeTree node.common.plans
-                ]
+                paragraph [] (nodeTypeEl node.common.nodeType :: nodeDetails)
+            , childNodeTree node.common.plans
+            ]
     in
     case plan of
         PCte cteNode ->
             treeNode cteNode
                 [ text " on "
-                , el [Font.italic ] <| text cteNode.cteName
+                , el [ Font.italic ] <| text cteNode.cteName
                 , text <| " (" ++ cteNode.alias_ ++ ")"
                 ]
+
         PGeneric genericNode ->
             treeNode { common = genericNode }
                 []
@@ -215,11 +334,12 @@ planNodeTree plan =
                 , el [ Font.italic ] <| text <| String.join ", " sortNode.sortKey
                 ]
 
+
 childNodeTree : Plans -> Element Msg
 childNodeTree (Plans plans) =
     column [ paddingEach { left = 20, right = 0, top = 0, bottom = 0 } ] <|
         List.concatMap planNodeTree plans
-    
+
 
 navBar : Element Msg
 navBar =
@@ -232,6 +352,7 @@ navBar =
         [ el [ alignLeft ] <| text "VisExp"
         , el [ alignRight ] <| text "Menu"
         ]
+
 
 
 ---- PROGRAM ----
