@@ -100,6 +100,12 @@ view model =
 blue : Color
 blue = rgb255 52 101 164
 
+lightBlue : Color
+lightBlue = rgb255 139 178 248
+
+lightYellow : Color
+lightYellow = rgb255 255 255 96
+
 white : Color
 white = rgb255 255 255 255
 
@@ -157,12 +163,63 @@ displayPage model =
         tree =
             case Json.Decode.decodeString decodePlanJson model.currPlanText of
                 Ok planJson ->
-                    text "Success"
-                Err err ->
-                    text <| Json.Decode.errorToString err
+                    planNodeTree planJson.plan
 
+                Err err ->
+                    [ text <| Json.Decode.errorToString err ]
     in  
-    column [] [ tree ]
+    column [] tree
+
+planNodeTree : Plan -> List (Element Msg)
+planNodeTree plan =
+    let
+        nodeTypeEl nodeType =
+            el [ Font.bold ] <| text nodeType
+        
+        treeNode node nodeDetails =
+            [ el
+                [ Border.widthEach { bottom = 1, top = 0, left = 0, right = 0 }
+                , Border.color lightBlue
+                , mouseOver [ Background.color lightYellow ]
+                , padding 4
+                ] <|
+                paragraph [] ((nodeTypeEl node.common.nodeType) :: nodeDetails)
+                , childNodeTree node.common.plans
+                ]
+    in
+    case plan of
+        PCte cteNode ->
+            treeNode cteNode
+                [ text " on "
+                , el [Font.italic ] <| text cteNode.cteName
+                , text <| " (" ++ cteNode.alias_ ++ ")"
+                ]
+        PGeneric genericNode ->
+            treeNode { common = genericNode }
+                []
+
+        PResult resultNode ->
+            treeNode resultNode
+                []
+
+        PSeqScan seqScanNode ->
+            treeNode seqScanNode
+                [ text " on "
+                , el [ Font.italic ] <| text seqScanNode.relationName
+                , text <| " (" ++ seqScanNode.alias_ ++ ")"
+                ]
+
+        PSort sortNode ->
+            treeNode sortNode
+                [ text " on "
+                , el [ Font.italic ] <| text <| String.join ", " sortNode.sortKey
+                ]
+
+childNodeTree : Plans -> Element Msg
+childNodeTree (Plans plans) =
+    column [ paddingEach { left = 20, right = 0, top = 0, bottom = 0 } ] <|
+        List.concatMap planNodeTree plans
+    
 
 navBar : Element Msg
 navBar =
