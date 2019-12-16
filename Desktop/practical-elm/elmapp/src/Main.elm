@@ -11,6 +11,7 @@ import Element.Events exposing (onMouseEnter, onMouseLeave)
 import Html.Attributes exposing (src)
 import Json.Decode
 import PlanParsers.Json exposing (..)
+import Attr exposing (..)
 
 
 
@@ -107,51 +108,6 @@ view model =
                 ]
         ]
     }
-
-
-blue : Color
-blue =
-    rgb255 52 101 164
-
-
-lightBlue : Color
-lightBlue =
-    rgb255 139 178 248
-
-
-lightYellow : Color
-lightYellow =
-    rgb255 255 255 96
-
-
-white : Color
-white =
-    rgb255 255 255 255
-
-
-lightCharcoal : Color
-lightCharcoal =
-    rgb255 136 138 133
-
-
-lightGrey : Color
-lightGrey =
-    rgb255 226 226 226
-
-
-grey : Color
-grey =
-    rgb255 145 145 145
-
-
-green : Color
-green =
-    rgb255 0 97 43
-
-
-darkGreen : Color
-darkGreen =
-    rgb255 0 141 0
 
 
 inputPage : Model -> Element Msg
