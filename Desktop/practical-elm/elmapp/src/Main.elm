@@ -1,6 +1,7 @@
 module Main exposing (..)
 
 import Attr exposing (..)
+import Auth exposing (..)
 import Browser
 import Browser.Events exposing (onKeyPress)
 import Element exposing (..)
@@ -15,9 +16,9 @@ import Http
 import Json.Decode
 import Json.Encode
 import PlanParsers.Json exposing (..)
+import PlanTree exposing (..)
 import Ports exposing (dumpModel, saveSessionId)
 import Time
-import PlanTree exposing (..)
 
 
 
@@ -32,52 +33,40 @@ type Page
 
 
 type Msg
-    = NoOp
-    | ChangePlanText String
+    = ChangePlanText String
     | MouseEnteredPlanNode Plan
     | MouseLeftPlanNode Plan
     | SubmitPlan
     | ToggleMenu
-    | ChangePassword String
-    | ChangeUserName String
     | CreatePlan
     | FinishSavedPlans (Result Http.Error (List SavedPlan))
     | RequestLogin
     | RequestLogout
     | RequestSavedPlans
-    | StartLogin
-    | FinishLogin (Result Http.Error String)
     | ShowPlan String
     | DumpModel ()
-    | SendHeartbeat Time.Posix
+    | Auth Auth.Msg
 
 
 type alias Model =
-    { currPage : Page
+    { auth : Auth.Model
+    , currPage : Page
     , currPlanText : String
-    , selectedNode : Maybe Plan
     , isMenuOpen : Bool
-    , password : String
-    , userName : String
     , lastError : String
+    , savedPlans : List SavedPlan
+    , selectedNode : Maybe Plan
     }
 
-
-type alias Flags =
-    { sessionId : Maybe String }
-
-
 init : Flags -> ( Model, Cmd Msg )
-init _ =
-    ( { currPage = InputPage
+init flags =
+    ( { auth = Auth.init flags.sessionId
+      , currPage = InputPage
       , currPlanText = ""
-      , selectedNode = Nothing
       , isMenuOpen = False
       , lastError = ""
-      , password = ""
       , savedPlans = []
-      , sessionId = flags.sessionId
-      , userName = ""
+      , selectedNode = Nothing
       }
     , Cmd.none
     )
@@ -470,6 +459,7 @@ menuPanel model =
 
     else
         none
+
 
 navBar : Element Msg
 navBar =
