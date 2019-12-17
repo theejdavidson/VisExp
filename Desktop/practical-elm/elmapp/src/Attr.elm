@@ -22,7 +22,9 @@ greyButton =
     , Border.color grey
     , Border.rounded 3
     , Border.widthEach { bottom = 1, right = 1, top = 0, left = 0 }
-    , Font.bold]
+    , Font.bold
+    , Font.color darkCharcoal
+    ]
 
 blue : Color
 blue =
@@ -47,6 +49,9 @@ white =
 lightCharcoal : Color
 lightCharcoal =
     rgb255 136 138 133
+
+darkCharcoal : Color
+darkCharcoal = rgb255 86 88 84
 
 
 lightGrey : Color

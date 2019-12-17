@@ -1,0 +1,20 @@
+
+<!doctype html>
+<html>
+<head>
+    <title>VisExp</title>
+    <script src="elm.js"></script>
+</head>
+
+<body>
+<script>
+    let app = Elm.Main.init()
+    app.ports.saveSessionId.subscribe((sessionId) => {
+        if (sessionId === null)
+            localStorate.removeItem("sessionId")
+        else
+            localStorage.setItem("sessionId", sessionId)
+    })
+</script>
+</body>
+</html>

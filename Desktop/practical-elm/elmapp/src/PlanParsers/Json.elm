@@ -154,3 +154,31 @@ decodeCommonFields =
         |> optional "Schema" Decode.string ""
         |> required "Startup Cost" Decode.float
         |> required "Total Cost" Decode.float
+
+type alias PlanVersion =
+    { version : Int
+    , createdAt : String
+    , planText : String
+    }
+
+decodePlanVersion : Decode.Decoder PlanVersion
+decodePlanVersion =
+    Decode.succeed PlanVersion
+        |> required "version" Decode.int
+        |> required "createdAt" Decode.string
+        |> required "planText" Decode.string
+
+type alias SavedPlan =
+    { id: String
+    , name : String
+    , versions : List PlanVersion
+    }
+
+decodeSavedPlans : Decode.Decoder (List SavedPlan)
+decodeSavedPlans =
+    Decode.list
+        (Decode.succeed SavedPlan
+            |> required "id" Decode.string
+            |> required "name" Decode.string
+            |> required "versions" (Decode.list decodePlanVersion)
+        )
