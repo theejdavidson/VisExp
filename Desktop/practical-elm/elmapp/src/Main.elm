@@ -209,8 +209,8 @@ httpErrorString error =
             "Request timeout"
 
 
-getSavedPlans : Maybe String -> Cmd Msg
-getSavedPlans sessionId =
+getSavedPlans : String -> Maybe String -> Cmd Msg
+getSavedPlans serverUrl sessionId =
     Http.request
         { method = "GET"
         , headers =
@@ -278,8 +278,8 @@ savedPlansPage model =
         }
 
 
-sendHeartbeat : Maybe String -> Cmd Msg
-sendHeartbeat sessionId =
+sendHeartbeat : String -> Maybe String -> Cmd Msg
+sendHeartbeat serverUrl sessionId =
     Http.request
         { method = "POST"
         , headers =
@@ -354,8 +354,8 @@ inputPage model =
         ]
 
 
-login : String -> String -> Cmd Msg
-login userName password =
+login : String -> String -> String -> Cmd Msg
+login serverUrl userName password =
     let
         body =
             Http.jsonBody <|
