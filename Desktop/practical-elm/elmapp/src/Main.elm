@@ -1,6 +1,6 @@
 module Main exposing (..)
 
-import Ports exposing (..)
+import Ports exposing (dumpModel, saveSessionId)
 import Attr exposing (..)
 import Browser
 import Element exposing (..)
@@ -15,6 +15,7 @@ import Http
 import Json.Decode
 import Json.Encode
 import PlanParsers.Json exposing (..)
+import Time
 
 
 
@@ -45,6 +46,8 @@ type Msg
     | StartLogin
     | FinishLogin (Result Http.Error String)
     | ShowPlan String
+    | DumpModel ()
+    | SendHeartbeat Time.Posix
 
 
 type alias Model =
@@ -59,7 +62,7 @@ type alias Model =
 
 
 type alias Flags =
-    ()
+    { sessionId : Maybe String}
 
 
 init : Flags -> ( Model, Cmd Msg )
@@ -68,6 +71,11 @@ init _ =
       , currPlanText = ""
       , selectedNode = Nothing
       , isMenuOpen = False
+      , lastError = ""
+      , password = ""
+      , savedPlans = []
+      , sessionId = flags.sessionId
+      , userName = ""
       }
     , Cmd.none
     )
@@ -79,8 +87,10 @@ init _ =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
-
+    Sub.batch
+    [ dumpModel DumpModel
+    , Time.every (100 * 1000) SendHeartbeat
+    ]
 
 
 ---- UPDATE ----
@@ -129,7 +139,6 @@ update msg model =
         ToggleMenu ->
             ( { model | isMenuOpen = not model.isMenuOpen }, Cmd.none )
 
-        -- ToDo: this might be wrong
         FinishLogin (Ok sessionId) ->
             ( { model | sessionId = Just sessionId, currPage = InputPage }
             , saveSessionId <| Just sessionId
@@ -150,6 +159,12 @@ update msg model =
             ( { model | currPlanText = planText, currPage = DisplayPage }
             , Cmd.none
             )
+        
+        DumpModel () ->
+            ( Debug.log "model" model, Cmd.none )
+
+        SendHeartbeat _ ->
+            ( model, sendHeartbeat model.sessionId )
 
 
 httpErrorString : Http.Error -> String
@@ -238,6 +253,19 @@ savedPlansPage model =
               }
             ]
         }
+
+sendHeartbeat : Maybe String -> Cmd Msg
+sendHeartbeat sessionId =
+    Http.request
+        { method = "POST"
+        , headers =
+            [ Http.header "SessionId" <| Maybe.withDefault "" sessionId ]
+            , url = serverUrl ++ "heartbeat"
+            , body = Http.emptyBody
+            , timeout = Nothing
+            , tracker = Nothing
+            , expect = Http.expectWhatever <| always NoOp
+            }
 
 
 

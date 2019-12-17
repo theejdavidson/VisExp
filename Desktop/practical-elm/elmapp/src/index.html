@@ -8,7 +8,10 @@
 
 <body>
 <script>
-    let app = Elm.Main.init()
+    let app = Elm.Main.init({
+        flags: {sessionId: localStorage.getItem("sessionId")}
+    })
+    app.ports.dumpModel.send(null)
     app.ports.saveSessionId.subscribe((sessionId) => {
         if (sessionId === null)
             localStorate.removeItem("sessionId")
