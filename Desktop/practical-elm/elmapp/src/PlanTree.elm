@@ -36,7 +36,7 @@ render config planJson selectedNode =
             , alignTop
             , padding 5
             , Border.widthEach { left = 1, right = 0, top = 0, bottom = 0 }
-            , Border.color Attr.grey
+            , Border.color Color.grey
             ]
             <|
                 details
@@ -62,7 +62,7 @@ detailPanelContent plan =
                 el
                     [ Font.bold
                     , Border.widthEach { bottom = 1, top = 0, left = 0, right = 0 }
-                    , Border.color Attr.lightGrey
+                    , Border.color Color.lightGrey
                     ]
                 <|
                     text name
@@ -108,8 +108,8 @@ planNodeTree config plan =
         treeNode node nodeDetails =
             [ el
                 [ Border.widthEach { bottom = 1, top = 0, left = 0, right = 0 }
-                , Border.color Attr.lightBlue
-                , mouseOver [ Background.color Attr.lightYellow ]
+                , Border.color Color.lightBlue
+                , mouseOver [ Background.color Color.lightYellow ]
                 , padding 4
                 , onMouseEnter <| config.onMouseEnteredNode plan
                 , onMouseLeave <| config.onMouseLeftNode plan

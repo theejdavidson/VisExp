@@ -19,6 +19,9 @@ import PlanParsers.Json exposing (..)
 import PlanTree exposing (..)
 import Ports exposing (dumpModel, saveSessionId)
 import Time
+import Utils exposing (..)
+import Pages.Registration exposing (Model)
+import Types exposing (..)
 
 
 
@@ -26,10 +29,11 @@ import Time
 
 
 type Page
-    = DisplayPage
+    = DisplayPage Display.Model
     | InputPage
     | LoginPage
-    | SavedPlansPage
+    | RegistrationPage Registration.Model
+    | SavedPlansPage SavedPlans.Model
 
 
 type Msg
@@ -46,17 +50,14 @@ type Msg
     | ShowPlan String
     | DumpModel ()
     | Auth Auth.Msg
+    | Register Registration.Msg
 
 
 type alias Model =
-    { auth : Auth.Model
+    { appState : AppState
     , currPage : Page
-    , currPlanText : String
-    , isMenuOpen : Bool
-    , lastError : String
-    , savedPlans : List SavedPlan
-    , selectedNode : Maybe Plan
     }
+
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
@@ -122,14 +123,46 @@ keyToMsg model s =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        ChangePassword s ->
-            ( { model | password = s }, Cmd.none )
+        Auth authMsg ->
+            let
+                ( authModel, authCmd ) =
+                    Auth.update serverUrl authMsg model.auth
+
+                currPage =
+                    case authMsg of
+                        Auth.FinishLogin (Ok _) ->
+                            InputPage
+
+                        _ ->
+                            model.currPage
+            in
+            ( { model | auth = authModel, currPage = currPage }
+            , Cmd.map Auth authCmd
+            )
+
+        RequestRegistration ->
+            ( { model | currPage = RegistrationPage Registration.init }, Cmd.none )
+
+        Register regMsg ->
+            let
+                (newAppState, regModel, regCmd ) =
+                    Registration.update regMsg model.appState pageModel
+
+                newCurrPage =
+                    case regMsg of
+                        Registration.FinishRegistration (Ok _) ->
+                            InputPage
+
+                        _ ->
+                            RegistrationPage regModel
+            in
+            ( { appState = newAppState, currPage = newCurrPage }
+            , Cmd.map Register regCmd
+            )
+            
 
         ChangePlanText s ->
             ( { model | currPlanText = s }, Cmd.none )
-
-        ChangeUserName s ->
-            ( { model | userName = s }, Cmd.none )
 
         CreatePlan ->
             ( { model | currPage = InputPage, currPlanText = "" }, Cmd.none )
@@ -140,11 +173,8 @@ update msg model =
         MouseLeftPlanNode commonFields ->
             ( { model | selectedNode = Nothing }, Cmd.none )
 
-        NoOp ->
-            ( model, Cmd.none )
-
-        RequestLogin ->
-            ( { model | currPage = LoginPage, password = "", userName = "" }
+        ( RequestLogin, _ ) ->
+            ( { model | currPage = LoginPage }
             , Cmd.none
             )
 
@@ -153,24 +183,11 @@ update msg model =
             , getSavedPlans model.sessionId
             )
 
-        StartLogin ->
-            ( model, login model.userName model.password )
-
-        SubmitPlan ->
-            ( { model | currPage = DisplayPage }, Cmd.none )
+        ( SubmitPlan, InputPage ) ->
+            ( { model | currPage = DisplayPage Display.init }, Cmd.none )
 
         ToggleMenu ->
             ( { model | isMenuOpen = not model.isMenuOpen }, Cmd.none )
-
-        FinishLogin (Ok sessionId) ->
-            ( { model | sessionId = Just sessionId, currPage = InputPage }
-            , saveSessionId <| Just sessionId
-            )
-
-        FinishLogin (Err error) ->
-            ( { model | lastError = httpErrorString error }
-            , Cmd.none
-            )
 
         FinishSavedPlans (Ok savedPlans) ->
             ( { model | savedPlans = savedPlans }, Cmd.none )
@@ -186,27 +203,8 @@ update msg model =
         DumpModel () ->
             ( Debug.log "model" model, Cmd.none )
 
-        SendHeartbeat _ ->
-            ( model, sendHeartbeat model.sessionId )
-
-
-httpErrorString : Http.Error -> String
-httpErrorString error =
-    case error of
-        Http.BadBody message ->
-            "Unable to handle response: " ++ message
-
-        Http.BadStatus statusCode ->
-            "Server error: " ++ String.fromInt statusCode
-
-        Http.BadUrl url ->
-            "Invalid URL: " ++ url
-
-        Http.NetworkError ->
-            "Network error"
-
-        Http.Timeout ->
-            "Request timeout"
+        (_, _ ) ->
+            ( model, Cmd.none )
 
 
 getSavedPlans : String -> Maybe String -> Cmd Msg
@@ -278,20 +276,6 @@ savedPlansPage model =
         }
 
 
-sendHeartbeat : String -> Maybe String -> Cmd Msg
-sendHeartbeat serverUrl sessionId =
-    Http.request
-        { method = "POST"
-        , headers =
-            [ Http.header "SessionId" <| Maybe.withDefault "" sessionId ]
-        , url = serverUrl ++ "heartbeat"
-        , body = Http.emptyBody
-        , timeout = Nothing
-        , tracker = Nothing
-        , expect = Http.expectWhatever <| always NoOp
-        }
-
-
 
 ---- VIEW ----
 
@@ -301,8 +285,9 @@ view model =
     let
         content =
             case model.currPage of
-                DisplayPage ->
-                    displayPage model
+                DisplayPage pageModel ->
+                    Display.page model.appState pageModel
+                        |> Element.map Display
 
                 InputPage ->
                     inputPage model
@@ -310,8 +295,13 @@ view model =
                 LoginPage ->
                     loginPage model
 
-                SavedPlansPage ->
-                    savedPlansPage model
+                SavedPlansPage pageModel ->
+                    SavedPlans.page pageModel
+                        |> Element.map SavedPlans
+
+                RegistrationPage pageModel ->
+                    Registration.page pageModel
+                        |> Element.map Register
     in
     { title = "VisExp"
     , body =
@@ -353,37 +343,16 @@ inputPage model =
             }
         ]
 
-
-login : String -> String -> String -> Cmd Msg
-login serverUrl userName password =
-    let
-        body =
-            Http.jsonBody <|
-                Json.Encode.object
-                    [ ( "userName", Json.Encode.string userName )
-                    , ( "password", Json.Encode.string password )
-                    ]
-
-        responseDecoder =
-            Json.Decode.field "sessionId" Json.Decode.string
-    in
-    Http.post
-        { url = serverUrl ++ "login"
-        , body = body
-        , expect = Http.expectJson FinishLogin responseDecoder
-        }
-
-
 loginPage : Model -> Element Msg
 loginPage model =
     column [ paddingXY 0 20, spacingXY 0 10, width (px 300), centerX ]
-        [ Input.username Html.input
+        [ Input.username Attr.input
             { onChange = ChangeUserName
             , text = model.userName
             , label = Input.labelAbove [] <| text "User name:"
             , placeholder = Nothing
             }
-        , Input.currentPassword Html.input
+        , Input.currentPassword Attr.input
             { onChange = ChangePassword
             , text = model.password
             , label = Input.labelAbove [] <| text "Password:"

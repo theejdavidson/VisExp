@@ -1,5 +1,6 @@
 module Attr exposing (..)
 
+import Color exposing (..)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -26,49 +27,10 @@ greyButton =
     , Font.color darkCharcoal
     ]
 
-blue : Color
-blue =
-    rgb255 52 101 164
+error : List (Attribute msg)
+error =
+    [ Font.color red ]
 
-
-lightBlue : Color
-lightBlue =
-    rgb255 139 178 248
-
-
-lightYellow : Color
-lightYellow =
-    rgb255 255 255 96
-
-
-white : Color
-white =
-    rgb255 255 255 255
-
-
-lightCharcoal : Color
-lightCharcoal =
-    rgb255 136 138 133
-
-darkCharcoal : Color
-darkCharcoal = rgb255 86 88 84
-
-
-lightGrey : Color
-lightGrey =
-    rgb255 226 226 226
-
-
-grey : Color
-grey =
-    rgb255 145 145 145
-
-
-green : Color
-green =
-    rgb255 0 97 43
-
-
-darkGreen : Color
-darkGreen =
-    rgb255 0 141 0
+input : List (Attribute msg)
+input =
+    [ Border.width 1, Border.rounded 3, Border.color lightCharcoal, padding 3]
