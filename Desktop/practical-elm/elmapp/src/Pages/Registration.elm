@@ -1,4 +1,4 @@
-module Pages.Registration exposing (Model, Msg(..), Platform(..), init)
+module Pages.Registration exposing (Model, Msg(..), PageMsg(..), Platform(..), init, page, update)
 
 import Http
 import Types exposing (..)
@@ -9,6 +9,7 @@ import Element exposing (..)
 import Element.Input as Input
 import Attr exposing (..)
 import Utils exposing (httpErrorString)
+import Validate exposing (..)
 type Msg
     = ChangePassword String
     | ChangeRepeatPassword String
@@ -20,7 +21,7 @@ type Msg
 
 type PageMsg
     = DoNothing
-    | FinishSuccessfully String
+    | FinishSuccessfully SessionId
 
 type Platform
     = Aws
@@ -63,10 +64,20 @@ update msg { serverUrl} model =
             ( { model | userName = u }, Cmd.none, DoNothing )
 
         FinishRegistration (Ok sessionIdStr) ->
-            ( model
-            , saveSessionId <| Just sessionId
-            , FinishSuccessfully sessionIdStr
-            )
+            case makeSessionId sessionIdStr of
+                Just sessionId ->
+                    ( model
+                    , saveSessionId <| Just (asString sessionId)
+                    , FinishSuccessfully sessionId
+                    )
+
+                Nothing ->
+                    ( { model
+                        | errors = [ "Invalid session ID returned from the server" ]
+                      }
+                    , Cmd.none
+                    , DoNothing
+                    )
 
         FinishRegistration (Err error) ->
             ( { model | errors = [ httpErrorString error ] }, Cmd.none, DoNothing )
@@ -78,10 +89,15 @@ update msg { serverUrl} model =
             )
 
         StartRegistration ->
-            ( model
-            , register serverUrl model.userName model.password
-            , DoNothing
-            )
+            case validate validator model of
+                Ok validModel ->
+                    ( fromValid validModel
+                    , register serverUrl model.userName model.password
+                    , DoNothing
+                    )
+
+                Err errors ->
+                    ( { model | errors = errors }, Cmd.none, DoNothing )
 
         ToggleAcceptTerms val ->
             ( { model | hasAcceptedTerms = val }, Cmd.none, DoNothing )
@@ -154,3 +170,28 @@ page model =
             } 
         ]
             ++ List.map (text >> el Attr.error) model.errors
+
+validator : Validator String Model
+validator =
+    Validate.all
+        [ Validate.ifInvalidEmail .userName
+            (\_ -> "Please enter a valid email address.")
+        , Validate.ifBlank .password "Password can't be blank."
+        , Validate.fromErrors
+            (\model ->
+                if model.password == model.repeatPassword then
+                    []
+                    
+                else
+                    [ "Passwords must match"]
+            )
+    , Validate.fromErrors
+        (\model ->
+            if model.platform /= Nothing then
+                []
+            
+            else
+                [ "Please select a platform." ]
+        )
+    , Validate.ifFalse .hasAcceptedTerms "Please accept the terms."
+    ]

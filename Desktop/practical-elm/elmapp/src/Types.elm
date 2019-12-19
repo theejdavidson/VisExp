@@ -1,11 +1,19 @@
-module Types exposing (..)
+module Types exposing (SessionId, asString, makeSessionId)
 
-import Auth exposing (Model)
 
-type alias AppState =
-    { auth : Auth.Model
-    , currPlanText : String
-    , isMenuOpen : Bool
-    , lastError : String
-    , serverUrl : String
-    }
+type SessionId
+    = SessionId String
+
+
+makeSessionId : String -> Maybe SessionId
+makeSessionId s =
+    if String.isEmpty s then
+        Nothing
+
+    else
+        Just (SessionId s)
+
+
+asString : SessionId -> String
+asString (SessionId id) =
+    id

@@ -1,4 +1,4 @@
-module Auth exposing (Flags, Model, Msg(..), init, update)
+module Auth exposing (Model, Msg(..), init, update)
 
 import Http
 import Json.Decode
@@ -6,6 +6,7 @@ import Json.Encode
 import Ports exposing (..)
 import Time
 import Utils exposing (..)
+import Types exposing (..)
 
 type Msg
     = NoOp
@@ -18,14 +19,11 @@ type Msg
 type alias Model =
     { lastError : String
     , password : String
-    , sessionId : Maybe String
+    , sessionId : Maybe SessionId
     , userName : String
     }
 
-type alias Flags =
-    { sessionId : Maybe String }
-
-init : Maybe String -> Model
+init : Maybe SessionId -> Model
 init sessionId =
     { lastError = ""
     , password = ""
@@ -33,7 +31,7 @@ init sessionId =
     , userName = ""
     }
 
-update : String -> Msg -> Model -> (Model, Cmd Msg )
+update : String -> Msg -> Model -> ( Model, Cmd Msg )
 update serverUrl msg model =
     case msg of
         ChangePassword p ->
@@ -42,9 +40,13 @@ update serverUrl msg model =
         ChangeUserName name ->
             ( { model | userName = name }, Cmd.none )
 
-        FinishLogin (Ok sessionId) ->
-            ( { model | sessionId = Just sessionId, userName = "", password = "" }
-            , saveSessionId <| Just sessionId
+        FinishLogin (Ok sessionIdStr) ->
+            ( { model
+                | sessionId = makeSessionId sessionIdStr
+                , userName = ""
+                , password = ""
+              }
+            , saveSessionId <| Just sessionIdStr
             )
 
         FinishLogin (Err error) ->
@@ -54,17 +56,21 @@ update serverUrl msg model =
             ( model, Cmd.none )
 
         SendHeartbeat _ ->
-            ( model, sendHeartbeat serverUrl model.sessionId )
+            case model.sessionId of
+                Just sessionId ->
+                    ( model, sendHeartbeat serverUrl sessionId )
+
+                Nothing ->
+                    ( model, Cmd.none )
 
         StartLogin ->
             ( model, login serverUrl model.userName model.password )
-
-sendHeartbeat : String -> Maybe String -> Cmd Msg
+sendHeartbeat : String -> SessionId -> Cmd Msg
 sendHeartbeat serverUrl sessionId =
     Http.request
         { method = "POST"
         , headers =
-            [ Http.header "SessionId" <| Maybe.withDefault "" sessionId ]
+            [ Http.header "SessionId" <| asString sessionId ]
         , url = serverUrl ++ "heartbeat"
         , body = Http.emptyBody
         , timeout = Nothing
