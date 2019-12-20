@@ -28,9 +28,16 @@ type alias Model =
     }
 
 
-init : String -> SessionId -> ( Model, Cmd Msg )
+init : String -> Maybe SessionId -> ( Model, Cmd Msg )
 init serverUrl sessionId =
-    ( { lastError = "", savedPlans = [] }, getSavedPlans serverUrl sessionId )
+    case sessionId of
+        Just validId ->
+            ( { lastError = "", savedPlans = [] }
+            , getSavedPlans serverUrl validId 
+            )
+
+        Nothing ->
+            ( { lastError = "Invalid session ID", savedPlans = [] }, Cmd.none )
 
 
 getSavedPlans : String -> SessionId -> Cmd Msg
