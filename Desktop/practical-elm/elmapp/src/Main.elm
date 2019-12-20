@@ -336,7 +336,10 @@ menuPanel appState =
                             ]
 
                         Nothing ->
-                            [ el [ pointer, onClick RequestLogin ] <| text "Login" ]
+                            [ el [ pointer, onClick RequestLogin ] <| text "Login"
+                            , el [ pointer, onClick RequestRegistration ] <|
+                                text "Register"
+                            ]
                    )
 
         panel =
