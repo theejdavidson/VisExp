@@ -78,7 +78,11 @@ sendHeartbeat serverUrl sessionId =
         , expect = Http.expectWhatever <| always NoOp
         }
 
-login : String -> String -> String -> Cmd Msg
+type alias ServerUrl = String
+type alias UserName = String
+type alias Password = String
+
+login : ServerUrl -> UserName -> Password -> Cmd Msg
 login serverUrl userName password =
     let
         body =
