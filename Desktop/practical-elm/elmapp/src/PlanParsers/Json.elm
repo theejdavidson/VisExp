@@ -137,7 +137,9 @@ decodeResultNode =
         Decode.map PResult innerDecoder
 
 type alias CommonFields =
-    { nodeType : String
+    { actualLoops : Int
+    , actualTotalTime : Float
+    , nodeType : String
     , plans : Plans
     , relationName : String
     , schema : String
@@ -148,6 +150,8 @@ type alias CommonFields =
 decodeCommonFields : Decode.Decoder CommonFields
 decodeCommonFields =
     Decode.succeed CommonFields
+        |> required "Actual Loops" Decode.int
+        |> required "Actual Total Time" Decode.float
         |> required "Node Type" Decode.string
         |> optional "Plans" decodePlans (Plans [])
         |> optional "Relation Name" Decode.string ""

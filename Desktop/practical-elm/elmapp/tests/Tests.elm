@@ -1,9 +1,11 @@
 module Tests exposing (..)
 
 import Expect exposing (Expectation)
+import Fuzz
 import Json.Decode
 import PlanParsers.Json exposing (..)
 import Test exposing (..)
+import Utils exposing (..)
 
 
 
@@ -83,3 +85,60 @@ suite =
                         ]
                     }
         ]
+
+
+suite2 : Test
+suite2 =
+    describe "Node calculations"
+        [ fuzz nodeFuzzer "Node duration should not exceed total time" <|
+            \node ->
+                calcDuration node
+                    |> Expect.atMost (calcNodeTime node)
+        ]
+
+
+nodeFuzzer : Fuzz.Fuzzer CommonFields
+nodeFuzzer =
+    let
+        timeRange =
+            Fuzz.floatRange 0.001 1000.0
+
+        loopRange =
+            Fuzz.intRange 1 128
+    in
+    Fuzz.map4 makeNode
+        timeRange
+        loopRange
+        (Fuzz.list timeRange)
+        (Fuzz.list loopRange)
+
+
+makeNode : Float -> Int -> List Float -> List Int -> CommonFields
+makeNode actualTotalTime actualLoops subTimes subLoops =
+    let
+        makeSubNode ( time, loops ) =
+            PGeneric
+                { actualLoops = loops
+                , actualTotalTime = time
+                , nodeType = "Generic"
+                , plans = Plans []
+                , relationName = ""
+                , schema = ""
+                , startupCost = 0
+                , totalCost = 0
+                }
+
+        plans =
+            subLoops
+                |> List.map2 Tuple.pair subTimes
+                |> List.map makeSubNode
+    in
+    { actualLoops = actualLoops
+    , actualTotalTime = actualTotalTime
+    , nodeType = "Generic"
+    , plans = Plans plans
+    , relationName = ""
+    , schema = ""
+    , startupCost = 0
+    , totalCost = 0
+    }
