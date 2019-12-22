@@ -1,11 +1,14 @@
 module Tests exposing (..)
 
+import Auth exposing (Msg(..))
 import Expect exposing (Expectation)
 import Fuzz
 import Json.Decode
+import Main exposing (..)
 import PlanParsers.Json exposing (..)
 import Test exposing (..)
 import Utils exposing (..)
+import TestUpdate exposing (..)
 
 
 
@@ -90,10 +93,27 @@ suite =
 suite2 : Test
 suite2 =
     describe "Node calculations"
-        [ fuzz nodeFuzzer "Node duration should not exceed total time" <|
+        [ Test.fuzz nodeFuzzer "Node duration should not exceed total time" <|
             \node ->
                 calcDuration (Debug.log "Node" node)
                     |> Expect.atMost (calcNodeTime node)
+        ]
+
+
+suite3 : Test
+suite3 =
+    let
+        ( initialModel, _ ) =
+            init { sessionId = Just "123" }
+    in
+    describe "Update function"
+        [ TestUpdate.fuzz update
+            msgFuzzer
+            initialModel
+            "Should not reset session ID wrongly"
+          <|
+            \model ->
+                model.appState.auth.sessionId |> Expect.notEqual Nothing
         ]
 
 
@@ -111,6 +131,21 @@ nodeFuzzer =
         loopRange
         (Fuzz.list timeRange)
         (Fuzz.list loopRange)
+
+
+msgFuzzer : Fuzz.Fuzzer Main.Msg
+msgFuzzer =
+    Fuzz.oneOf <|
+        List.map Fuzz.constant
+            [ Auth <| ChangePassword "a"
+            , Auth <| ChangeUserName "a"
+            , Auth <| StartLogin
+            , ChangePlanText "{}"
+            , RequestLogin
+            , RequestRegistration
+            , SubmitPlan
+            , ToggleMenu
+            ]
 
 
 makeNode : Float -> Int -> List Float -> List Int -> CommonFields
