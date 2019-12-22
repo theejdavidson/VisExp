@@ -92,7 +92,7 @@ suite2 =
     describe "Node calculations"
         [ fuzz nodeFuzzer "Node duration should not exceed total time" <|
             \node ->
-                calcDuration node
+                calcDuration (Debug.log "Node" node)
                     |> Expect.atMost (calcNodeTime node)
         ]
 
